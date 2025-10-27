@@ -64,9 +64,29 @@ SEARCH PRIORITY (check in this order):
 3. Platform tags - How this type of remix is typically categorized on Beatport/Traxsource
 4. DJ community consensus - How DJs in that genre scene would classify it
 
+GENRE GUIDELINES - READ CAREFULLY:
+⛔ FORBIDDEN VAGUE GENRES - NEVER USE THESE:
+- "EDM" (too vague - specify: Big Room, Electro House, Progressive House, Festival House, etc.)
+- "Dance" (too vague - specify: Dance-Pop, House, Tech House, etc.)
+- "Electronic" (too vague - specify the actual subgenre)
+- "Club" or "Club Music" (too vague - unless it's specifically a "Club Mix" which becomes a subgenre tag)
+- NEVER use artist names, remixer names, or producer names as genres (e.g., "Barbangerz", "Zedd", "Tiësto" are NOT genres)
+
+✅ HOW TO BE SPECIFIC:
+- Instead of "EDM" → use "Big Room", "Electro House", "Progressive House", "Festival House", "Mainstage"
+- Instead of "Dance" → use "Dance-Pop", "House", "Tech House", "Electro House"
+- Instead of "Electronic" → use "Techno", "House", "Trance", "Dubstep", etc.
+- NEVER use the artist/remixer name as a genre - always use the actual music genre/style
+- Listen for key characteristics:
+  * Four-on-the-floor kick + percussive groove = "Tech House" or "Afro House"
+  * Four-on-the-floor + melodic synths + build-ups = "Progressive House" or "Electro House"
+  * Heavy bass drops + wobbles = "Dubstep" or "Bass House"
+  * Fast-paced + breakbeats = "Drum & Bass" or "Jungle"
+  * Synthesized beats + rap vocals = "Hip-Hop" or "Trap"
+
 After each song prompt, only respond strictly in this format:
 Is Remix: <ONLY respond with "Yes" or "No". "Yes" if the title contains remix/edit/bootleg/flip/VIP/rework/refix indicators OR remixer names in parentheses. "No" if it's the original version>
-Genre: <use PRECISE DJ/music pool genre names. For REMIXES: use the REMIXER'S genre style. For ORIGINALS: use the original song's genre. NEVER use generic terms like "EDM", "Electronic", or "Dance". Common genres: "Tech House", "Afro House", "Progressive House", "Electro House", "Future Bass", "Bass House", "French House", "Trap", "Hip-Hop", "R&B", "Pop", "K-Pop", "Dance-Pop", "Dubstep", "Drum & Bass", "House", "Deep House", "Techno", "Trance", "Hardstyle", "UK Garage", "Jersey Club", "Afrobeats", "Reggaeton", "Moombahton", "Big Room", "Mainstage EDM", "Funky House", "Disco House", "Nu Disco", "Tropical House", "Speed House", "Ghetto House", "Circuit House", "Melbourne Bounce", "Psytrance", "Acid House", "Breakbeat", "Organic House", "Melodic House", etc. If multiple genres apply, use "/" to separate them like "Afro House / Melodic House">
+Genre: <use PRECISE DJ/music pool genre names. For REMIXES: use the REMIXER'S genre style. For ORIGINALS: use the original song's genre. BE SPECIFIC - avoid vague umbrella terms! Common genres: "Tech House", "Afro House", "Afro", "Progressive House", "Electro House", "Future Bass", "Bass House", "French House", "Trap", "Hip-Hop", "R&B", "Pop", "K-Pop", "Dance-Pop", "Dubstep", "Drum & Bass", "House", "Deep House", "Techno", "Trance", "Hardstyle", "UK Garage", "Jersey Club", "Jersey", "Afrobeats", "Reggae", "Reggaeton", "Moombahton", "Big Room", "Mainstage", "Festival House", "Funky House", "Disco House", "Nu Disco", "Tropical House", "Speed House", "Ghetto House", "Circuit House", "Club House", "Melbourne Bounce", "Psytrance", "Acid House", "Breakbeat", "Breaks", "Organic House", "Melodic House", "Country", "Disco", "Funk", etc. If multiple genres apply, use "/" to separate them like "Afro House / Melodic House">
 Original Artists: <main artist and any featured artists, comma delimited>
 Original Song Release: <year of release of the ORIGINAL song, not the remix>
 Situation: <ONLY respond with "Bar", "Club", or "Both" - nothing else. Use "Bar" for laid-back/moderate energy tracks, "Club" for high-energy dance tracks, "Both" if it works in either setting>
@@ -76,13 +96,13 @@ Commercial Friendly: <ONLY respond with "Yes" or "No". "Yes" if the song has cle
 # -------------------- UTILITIES --------------------
 def load_json(path):
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def save_json(path, data):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 def get_bitrate(file_path):
     try:
@@ -174,6 +194,27 @@ def detect_transition(title):
         bpm1 = int(match.group(1))
         bpm2 = int(match.group(2))
         if 60 <= bpm1 <= 200 and 60 <= bpm2 <= 200:
+            return True
+    
+    return False
+
+def detect_club_mix(title):
+    """
+    Detect if a track is a club mix based on title patterns.
+    Example: "Song (Club Mix)", "Song (Club Version)", "Song - Club Mix" -> True
+    Returns True if club mix pattern found, False otherwise.
+    """
+    # Pattern: look for "club mix", "club version", "club edit", etc.
+    club_patterns = [
+        r'\bclub\s+mix\b',
+        r'\bclub\s+version\b',
+        r'\bclub\s+edit\b',
+        r'\bclub\s+remix\b',
+    ]
+    
+    title_lower = title.lower()
+    for pattern in club_patterns:
+        if re.search(pattern, title_lower):
             return True
     
     return False
@@ -327,6 +368,74 @@ def query_google_ai(title, chat, artist=None):
                 return None
     
         return None
+
+def validate_genre(genre_string, title, artist=None):
+    """
+    Validate genre and filter out vague/generic terms and artist/remixer names.
+    Returns the validated genre string or None if too vague.
+    """
+    if not genre_string:
+        return None
+    
+    # List of forbidden vague genres
+    vague_genres = ["edm", "dance", "electronic", "club music", "music"]
+    
+    # List of forbidden compound vague terms (e.g., "Dance & EDM")
+    forbidden_patterns = [
+        r'\b(dance|edm|electronic)\b.*\b(dance|edm|electronic)\b',  # "Dance & EDM", "Electronic Dance", etc.
+        r'\bedit\b$',  # "Edit" as a standalone genre
+        r'\bmix\b$',   # "Mix" as a standalone genre  
+        r'\bremix\b$', # "Remix" as a standalone genre
+    ]
+    
+    # Extract remixer name from title to avoid using it as a genre
+    remixer = extract_remixer_from_title(title)
+    
+    # Split by "/" for multi-genre tracks
+    genres = [g.strip() for g in genre_string.split("/")]
+    filtered_genres = []
+    
+    for genre in genres:
+        genre_lower = genre.lower().strip()
+        
+        # Check if it's a vague genre
+        if genre_lower in vague_genres:
+            print(f"  ⚠️ Vague genre detected: '{genre}' - skipping this genre component")
+            continue
+        
+        # Check for forbidden compound patterns
+        is_forbidden_pattern = False
+        for pattern in forbidden_patterns:
+            if re.search(pattern, genre_lower):
+                print(f"  ⚠️ Invalid genre pattern detected: '{genre}' - skipping")
+                is_forbidden_pattern = True
+                break
+        if is_forbidden_pattern:
+            continue
+        
+        # Check if the "genre" is actually the remixer's name
+        if remixer and remixer.lower() in genre_lower:
+            print(f"  ⚠️ Remixer name detected as genre: '{genre}' - skipping (remixer: {remixer})")
+            continue
+        
+        # Check if the "genre" is actually the artist's name
+        if artist and len(artist) > 3 and artist.lower() in genre_lower:
+            print(f"  ⚠️ Artist name detected as genre: '{genre}' - skipping (artist: {artist})")
+            continue
+        
+        # Allow "Club" if it's part of a compound genre like "Club House"
+        # but reject standalone "Club" unless it came from Club Mix detection
+        if genre_lower == "club":
+            # This is handled separately by detect_club_mix(), skip here
+            continue
+            
+        filtered_genres.append(genre)
+    
+    if not filtered_genres:
+        print(f"  ❌ All genres were too vague for '{title}'. Marking as unknown.")
+        return None
+    
+    return " / ".join(filtered_genres)
 
 def sort_genre(genre_string):
     """Sort multi-genre strings alphabetically."""
@@ -738,6 +847,9 @@ def main():
             info = parse_response(response)
             is_remix = info.get("is_remix", False)
             
+            # Store original Gemini genre as fallback
+            gemini_genre = info.get("genre", "")
+            
             # Only check SoundCloud if it's a REMIX (remixes should use remixer's genre tags)
             # Original songs should keep their original genre from Gemini
             if is_remix:
@@ -782,9 +894,36 @@ def main():
             else:
                 print(f"  ℹ️ Original song - using genre from AI: {info.get('genre')}")
             
+            # Validate genre to filter out vague terms and artist/remixer names
+            if info.get("genre"):
+                validated_genre = validate_genre(info["genre"], title, artist)
+                if not validated_genre:
+                    # Current genre was too vague, try fallback to Gemini genre if different
+                    if gemini_genre and gemini_genre.lower() != info.get("genre", "").lower():
+                        print(f"  🔄 Falling back to Gemini genre: {gemini_genre}")
+                        validated_genre = validate_genre(gemini_genre, title, artist)
+                        if not validated_genre:
+                            # Both genres were too vague, skip this track
+                            print(f"  ⚠️ Both SoundCloud and Gemini genres were invalid - skipping")
+                            continue
+                        info["genre"] = validated_genre
+                    else:
+                        # No valid fallback, skip this track
+                        continue
+                else:
+                    info["genre"] = validated_genre
+            
             # Normalize genre to Title Case for consistency
             if info.get("genre"):
                 info["genre"] = normalize_genre_case(info["genre"])
+            
+            # Detect and append Club to genre if "Club Mix" pattern found in title
+            is_club_mix = detect_club_mix(title)
+            if is_club_mix and info.get("genre"):
+                # Only append if "club" is not already present in the genre
+                if "club" not in info["genre"].lower():
+                    info["genre"] = f"{info['genre']} / Club"
+                    print(f"  🎶 Club mix detected - Genre updated to: {info['genre']}")
             
             # Detect and append Transition to genre if BPM pattern found
             is_transition = detect_transition(title)
@@ -796,30 +935,52 @@ def main():
             
             genre = info.get("genre", "").lower()
             if genre == "unknown" or not genre:
+                print(f"  ⚠️ No valid genre found for '{title}' - skipping (will reprocess later)")
                 continue  # skip if unknown
 
             rating = apply_metadata(full_path, info, energy_map, unknown_genres)
             
+            # Check if rating was determined (None means genre not in energy map or mashup)
+            # Mashups are allowed (valid genre but no rating due to varying energy)
+            is_mashup = "mashup" in genre
+            
+            if rating is None and not is_mashup:
+                # Genre not found in energy map - this is an unknown/invalid genre
+                print(f"  ⚠️ Unknown genre for '{title}': '{info.get('genre')}' - not found in energy map")
+                print(f"     Skipping Rekordbox tagging and not marking as processed (will reprocess later)")
+                continue  # Skip this track entirely - don't tag or mark as processed
+            
             # Tag in Rekordbox if database is available
             if rekordbox_enabled and db:
-                tag_rekordbox(full_path, title, info.get("situation", ""), info.get("genre", ""), rating, info.get("commercial", ""), is_transition, db)
+                try:
+                    tag_rekordbox(full_path, title, info.get("situation", ""), info.get("genre", ""), rating, info.get("commercial", ""), is_transition, db)
+                    # Commit to database immediately after tagging
+                    db.commit()
+                except Exception as e:
+                    print(f"  ⚠️ Failed to tag/commit to Rekordbox: {e}")
+                    # Don't skip - still save to processed_songs if ID3 tagging succeeded
 
+            # Only mark as processed if genre was valid
             processed_songs[title] = True
+            
+            # Save processed_songs.json immediately after each successful song
+            save_json(PROCESSED_SONGS_PATH, processed_songs)
 
             commercial_status = f"\n  Commercial: {info.get('commercial')}" if info.get('commercial') else ""
             remix_status = " [REMIX]" if info.get('is_remix') else " [ORIGINAL]"
-            print(f"\n✅ Tagged: {title}{remix_status}\n  Genre: {info.get('genre')}\n  Rating: {rating}\n  Situation: {info.get('situation')}{commercial_status}")
+            rating_display = rating if rating is not None else "N/A (Mashup)"
+            print(f"\n✅ Tagged: {title}{remix_status}\n  Genre: {info.get('genre')}\n  Rating: {rating_display}\n  Situation: {info.get('situation')}{commercial_status}")
 
-        # Commit Rekordbox changes
+        # Final commit (safety - individual commits already done per song)
         if rekordbox_enabled and db:
             try:
                 db.commit()
-                print("\n✓ Rekordbox database changes committed successfully!")
+                print("\n✓ Final Rekordbox database commit successful!")
             except RuntimeError as e:
-                print(f"\n❌ Failed to commit Rekordbox changes: {e}")
+                print(f"\n❌ Failed final commit: {e}")
                 print("   Please close Rekordbox and run the script again.")
             except Exception as e:
-                print(f"\n❌ Failed to commit Rekordbox changes: {e}")
+                print(f"\n❌ Failed final commit: {e}")
     
     finally:
         # Close database connection
@@ -827,7 +988,8 @@ def main():
             db.close()
             print("✓ Rekordbox database connection closed")
 
-    save_json(PROCESSED_SONGS_PATH, processed_songs)
+    # Note: processed_songs.json is saved after each song, no final save needed
+    print(f"✓ All progress saved to {PROCESSED_SONGS_PATH}")
 
     # Print summary of issues/warnings
     if low_bitrate_files or missing_title_files or unknown_genres or failed_files:
@@ -852,9 +1014,12 @@ def main():
             print(f"  - {f}")
 
     if unknown_genres:
-        print(f"\n⚠️ Unknown genres found: {len(unknown_genres)}")
+        print(f"\n⚠️ Songs with unknown/invalid genres (NOT PROCESSED): {len(unknown_genres)}")
+        print(f"   These songs were NOT tagged or saved to processed_songs.json")
+        print(f"   They will be reprocessed on the next run.")
         for title, genre in unknown_genres:
             print(f"  - {title} → {genre}")
+        print(f"\n💡 Tip: Add these genres to energy_map.json or update the AI prompt to get more specific genres.")
 
 if __name__ == "__main__":
     main()
