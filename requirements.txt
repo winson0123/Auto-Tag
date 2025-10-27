@@ -1,0 +1,9 @@
+# Core dependencies
+mutagen>=1.47.0
+tqdm>=4.66.0
+google-genai>=0.3.0
+pyrekordbox>=0.4.4
+
+# Optional but highly recommended: For accurate SoundCloud genre lookup
+soundcloudpy>=0.1.4
+
