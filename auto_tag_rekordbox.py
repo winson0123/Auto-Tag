@@ -12,6 +12,10 @@ from tqdm import tqdm
 from google import genai
 from pyrekordbox import Rekordbox6Database
 from pyrekordbox.db6 import tables
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Fix Windows console encoding for emojis
 if sys.platform == 'win32':
@@ -21,7 +25,7 @@ if sys.platform == 'win32':
         pass
 
 # -------------------- CONFIG --------------------
-MUSIC_DIR = os.getenv("MUSIC_DIR", r"C:\Path\To\Your\Music\Library")  # Set via environment variable or change this path
+MUSIC_DIR = os.getenv("MUSIC_DIR", r"C:\Path\To\Your\Music\Library")  # Set via .env file or change this path
 BITRATE_MIN = 320_000
 ENERGY_MAP_PATH = "energy_map.json"
 PROCESSED_SONGS_PATH = "processed_songs.json"

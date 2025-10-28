@@ -33,7 +33,24 @@ pip install soundcloudpy
 
 ## Configuration
 
-### Method 1: Environment Variables (Recommended)
+### Method 1: .env File (Recommended)
+
+1. Copy the example environment file:
+```bash
+cp env.example .env
+```
+
+2. Edit `.env` and fill in your configuration:
+```env
+MUSIC_DIR=C:\Path\To\Your\Music\Library
+GENAI_API_KEY=your_gemini_api_key_here
+SOUNDCLOUD_CLIENT_ID=your_client_id  # Optional
+SOUNDCLOUD_AUTH_TOKEN=OAuth 2-xxxxx-xxxxx-xxxxxxxxx  # Optional
+```
+
+The script will automatically load these environment variables using python-dotenv.
+
+### Method 2: System Environment Variables
 
 Set environment variables in your system:
 
@@ -57,9 +74,9 @@ export GENAI_API_KEY="your_api_key_here"
 export MUSIC_DIR="/path/to/your/music/library"
 ```
 
-### Method 2: Direct Configuration
+### Method 3: Direct Configuration
 
-Alternatively, edit the configuration section in `auto_tag_rekordbox.py` (lines 24-34):
+Alternatively, edit the configuration section in `auto_tag_rekordbox.py` (lines 28-38):
 
 ```python
 MUSIC_DIR = r"C:\Path\To\Your\Music\Library"
